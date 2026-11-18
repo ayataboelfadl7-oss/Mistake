@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دفتر أخطائي</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#1f4d46">
+<style>
+:root{--bg:#f3efe6;--card:#fffdf8;--ink:#1d2623;--mute:#6b746f;--main:#1f4d46;--bad:#c8402f;--line:#ddd6c6}
+@media(prefers-color-scheme:dark){:root{--bg:#141a18;--card:#1d2522;--ink:#ece8dd;--mute:#98a39d;--main:#5fb3a3;--bad:#ef7a68;--line:#2f3a36}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Tahoma,"Noto Naskh Arabic",sans-serif;line-height:1.6}
+.wrap{max-width:640px;margin:auto;padding:16px}
+h1{font-size:1.5rem;margin:6px 0 14px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.tab{flex:none;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:8px 16px;border-radius:99px;font:inherit;cursor:pointer}
+.tab.on{background:var(--main);color:var(--bg);border-color:var(--main)}
+.tab small{opacity:.75;margin-inline-start:4px}
+.box{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+label{display:block;font-size:.9rem;color:var(--mute);margin:8px 0 4px}
+.row{display:flex;gap:8px}
+textarea,input[type=search]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+textarea:focus,input:focus,button:focus-visible{outline:2.5px solid var(--main);outline-offset:1px}
+.mic{flex:none;width:46px;height:46px;border-radius:50%;border:none;background:var(--main);color:var(--bg);font-size:1.2rem;cursor:pointer}
+.mic.rec{background:var(--bad);animation:p 1s infinite}
+@keyframes p{50%{transform:scale(1.12)}}
+@media(prefers-reduced-motion:reduce){.mic.rec{animation:none}}
+.btn{font:inherit;border:1.5px solid var(--main);background:var(--main);color:var(--bg);padding:10px 18px;border-radius:10px;cursor:pointer}
+.btn.alt{background:none;color:var(--main)}
+.quick{display:flex;align-items:center;gap:10px;margin-top:12px}
+.quick .mic{width:56px;height:56px}
+.item{border-inline-start:5px solid var(--bad);background:var(--card);border-radius:10px;padding:10px 14px;margin:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.item.done{border-inline-start-color:var(--main);opacity:.65}
+.item .a{font-weight:600}.item .r{color:var(--main);margin-top:2px}
+.item .m{display:flex;gap:12px;font-size:.85rem;color:var(--mute);margin-top:6px;align-items:center}
+.item button{background:none;border:none;color:var(--mute);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
+.empty{text-align:center;color:var(--mute);padding:24px}
+#st{min-height:1.4em;color:var(--mute);font-size:.9rem}
+.foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>دفتر أخطائي</h1>
+<div class="tabs" id="tabs"></div>
+
+<div class="box">
+  <label for="wrong">الخطأ / السؤال اللي غلطت فيه</label>
+  <div class="row"><textarea id="wrong" rows="2"></textarea><button class="mic" data-t="wrong" aria-label="تسجيل صوتي">🎙</button></div>
+  <label for="right">الصح / الإجابة الصحيحة</label>
+  <div class="row"><textarea id="right" rows="2"></textarea><button class="mic" data-t="right" aria-label="تسجيل صوتي">🎙</button></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="add">حفظ الخطأ</button></div>
+  <div class="quick">
+    <button class="mic" id="quick" aria-label="تسجيل سريع">🎙</button>
+    <span>تسجيل سريع: اتكلم وهيتحفظ الخطأ على طول في المادة المختارة</span>
+  </div>
+  <div id="st" role="status"></div>
+</div>
+
+<input type="search" id="q" placeholder="ابحث في أخطاء المادة">
+<div id="list"></div>
+
+<div class="foot">
+  <button class="btn alt" id="exp">نسخة احتياطية</button>
+  <button class="btn alt" id="imp">استرجاع نسخة</button>
+  <input type="file" id="file" accept=".json" hidden>
+</div>
+</div>
+
+<script>
+const SUBJ=[["ar","عربي","ar-EG"],["en","إنجليزي","en-US"],["ph","فيزياء","ar-EG"],["ch","كيمياء","ar-EG"],["bi","أحياء","ar-EG"]];
+const $=s=>document.querySelector(s);
+let cur="ar",data={};
+try{data=JSON.parse(localStorage.getItem("mistakes")||"{}")}catch(e){}
+const save=()=>{try{localStorage.setItem("mistakes",JSON.stringify(data))}catch(e){status("تعذر الحفظ في المتصفح")}};
+const status=t=>$("#st").textContent=t;
+const lang=()=>SUBJ.find(s=>s[0]===cur)[2];
+function tabs(){$("#tabs").innerHTML=SUBJ.map(s=>`<button class="tab ${s[0]===cur?"on":""}" data-s="${s[0]}">${s[1]}<small>${(data[s[0]]||[]).length}</small></button>`).join("")}
+function render(){
+  tabs();
+  const q=$("#q").value.trim().toLowerCase();
+  const items=(data[cur]||[]).filter(i=>!q||(i.w+" "+i.r).toLowerCase().includes(q));
+  $("#list").innerHTML=items.length?items.map(i=>`<div class="item ${i.d?"done":""}"><div class="a">${esc(i.w)}</div>${i.r?`<div class="r">✔ ${esc(i.r)}</div>`:""}<div class="m"><span>${new Date(i.t).toLocaleDateString("ar-EG")}</span><button data-a="d" data-id="${i.id}">${i.d?"رجّعه للمراجعة":"اتراجع"}</button><button data-a="x" data-id="${i.id}">حذف</button></div></div>`).join(""):`<div class="empty">مفيش أخطاء هنا لسه. سجّل أول خطأ بصوتك.</div>`;
+}
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function add(w,r){
+  if(!w.trim())return status("اكتب أو سجّل الخطأ الأول");
+  (data[cur]=data[cur]||[]).unshift({id:Date.now(),w:w.trim(),r:(r||"").trim(),t:Date.now(),d:false});
+  save();render();status("اتحفظ ✔");
+}
+$("#tabs").onclick=e=>{const b=e.target.closest(".tab");if(b){cur=b.dataset.s;render()}};
+$("#add").onclick=()=>{add($("#wrong").value,$("#right").value);$("#wrong").value=$("#right").value=""};
+$("#q").oninput=render;
+$("#list").onclick=e=>{const b=e.target.closest("button");if(!b)return;const id=+b.dataset.id,L=data[cur];
+  if(b.dataset.a==="x"){if(confirm("تحذف الخطأ ده؟"))data[cur]=L.filter(i=>i.id!==id)}
+  else{const i=L.find(i=>i.id===id);i.d=!i.d}
+  save();render()};
+// Voice
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null;
+function listen(btn,onText){
+  if(!SR)return status("المتصفح ده مش بيدعم التسجيل الصوتي. جرّب Chrome.");
+  if(rec){rec.stop();return}
+  rec=new SR();rec.lang=lang();rec.interimResults=false;
+  btn.classList.add("rec");status("بسمعك... اتكلم");
+  rec.onresult=e=>onText(e.results[0][0].transcript);
+  rec.onerror=e=>status(e.error==="not-allowed"?"اسمح للمايك من إعدادات المتصفح":"حصلت مشكلة في التسجيل، جرّب تاني");
+  rec.onend=()=>{btn.classList.remove("rec");rec=null;if($("#st").textContent.startsWith("بسمعك"))status("")};
+  rec.start();
+}
+document.querySelectorAll(".mic[data-t]").forEach(b=>b.onclick=()=>listen(b,t=>{const f=$("#"+b.dataset.t);f.value=(f.value+" "+t).trim()}));
+$("#quick").onclick=e=>listen(e.currentTarget,t=>add(t,""));
+// Backup
+$("#exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:"application/json"}));a.download="mistakes-backup.json";a.click()};
+$("#imp").onclick=()=>$("#file").click();
+$("#file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();render();status("اتسترجعت النسخة ✔")}catch(x){status("الملف ده مش نسخة صالحة")}};r.readAsText(f)};
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+render();
+</script>
+</body>
+</html>
